@@ -25,6 +25,7 @@ public class FileDataNormalizeTask implements Task<List<Map<String, Object>>>{
 	@SuppressWarnings("unchecked")
 	@Override
 	public List<Map<String, Object>> execute(List<Object> dependencies) {
+		System.out.println("Starting FileDataNormalizeTask");
 		if (dependencies == null || dependencies.size() != 2) {
 			return Collections.emptyList();
 		}

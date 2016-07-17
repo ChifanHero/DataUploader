@@ -11,6 +11,7 @@ import java.util.concurrent.TimeoutException;
 
 import com.mongodb.MongoClient;
 
+import app.config.GoogleConfig;
 import app.config.MongoDBConfig;
 import app.logger.StatusLogger;
 import app.tasks.DataFilterTask;
@@ -47,7 +48,7 @@ public class DataUploadApp {
 		orchestrator.acceptTask(readTask);
 		LoadExistingDataTask loadTask = new LoadExistingDataTask(MongoDBConfig.DATABASE_STAGING);
 		orchestrator.acceptTask(loadTask);
-		GeocodingTask geoTask = new GeocodingTask(orchestrator);
+		GeocodingTask geoTask = new GeocodingTask(orchestrator, GoogleConfig.GEOCODING_API_KEY);
 		TaskConfiguration geoTC = new TaskConfiguration(geoTask).addDependency(readTask);
 		orchestrator.acceptTask(geoTask, geoTC);
 		FileDataNormalizeTask normalizeTask = new FileDataNormalizeTask();

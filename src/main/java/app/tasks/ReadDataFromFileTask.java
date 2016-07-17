@@ -33,6 +33,7 @@ public class ReadDataFromFileTask implements Task<List<Map<String, Object>>>{
 	}
 
 	public List<Map<String, Object>> execute(List<Object> dependencies) {
+		System.out.println("Starting ReadDataFromFileTask");
 		if (filePaths == null || filePaths.isEmpty()) {
 			return null;
 		}

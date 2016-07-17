@@ -42,6 +42,7 @@ public class SaveDataTask implements Task<Object>{
 	 */
 	@SuppressWarnings("unchecked")
 	public Object execute(List<Object> dependencies) {
+		System.out.println("Starting SaveDataTask");
 		if (dependencies == null || dependencies.size() != 1) {
 			return Collections.emptyList();
 		}
@@ -55,6 +56,7 @@ public class SaveDataTask implements Task<Object>{
 		if (restaurants == null || restaurants.isEmpty()) {
 			return;
 		}
+		int saved = 0;
 		List<WriteModel<Document>> updates = new ArrayList<WriteModel<Document>>();
 		List<Document> documents = new ArrayList<Document>();
 		for (Map<String, Object> obj : restaurants) {
@@ -70,10 +72,13 @@ public class SaveDataTask implements Task<Object>{
 		}
 		try {
 			collection.bulkWrite(updates);
+			saved = updates.size();
 		} catch (Exception e) {
 			statusLogger.mongoLogger.setSuccess(false);
 			statusLogger.mongoLogger.addError(e.getMessage());
+			saved = 0;
 		}
+		statusLogger.summaryLogger.logTotalSaved(saved);
 	}
 
 	public void failedToComplete() {

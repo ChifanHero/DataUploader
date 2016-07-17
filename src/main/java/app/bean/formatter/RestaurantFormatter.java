@@ -14,6 +14,9 @@ public class RestaurantFormatter {
 		if (original.isEmpty()) {
 			return "";
 		}
+		if (!containsHanScript(original)) {
+			return original;
+		}
 		StringBuilder sb = new StringBuilder();
 		char[] chars = original.toCharArray();
 		for (int i = 0; i < chars.length; i++) {

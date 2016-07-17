@@ -39,6 +39,7 @@ public class LoadExistingDataTask implements Task<List<Map<String, Object>>>{
 	 * This task does not have any dependency.
 	 */
 	public List<Map<String, Object>> execute(List<Object> dependencies) {
+		System.out.println("Starting LoadExistingDataTask");
 		MongoCollection<Document> collection = MongoClientFactory.getClient().getDatabase(database).getCollection("Restaurant");
 		if (collection.count() <= 0) {
 			return Collections.emptyList();

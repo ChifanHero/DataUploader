@@ -3,6 +3,7 @@ package app.tasks;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,6 +33,7 @@ public class DataFilterTask implements Task<List<Map<String, Object>>>{
 	 */
 	@SuppressWarnings("unchecked")
 	public List<Map<String, Object>> execute(List<Object> dependencies) {
+		System.out.println("Starting DataFilterTask");
 		if (dependencies == null || dependencies.size() != 2) {
 			return Collections.emptyList();
 		}
@@ -82,13 +84,35 @@ public class DataFilterTask implements Task<List<Map<String, Object>>>{
 			return true;
 		}
 		Set<String> newKey = restaurant.keySet();
+		filterEmptyKey(newKey, restaurant);
 		Set<String> existingKey = existing.keySet();
+		filterEmptyKey(existingKey, existing);
 		for (String key : newKey) {
 			if (!existingKey.contains(key)) {
 				return true;
 			} 
 		}
 		return false;
+	}
+
+	private void filterEmptyKey(Set<String> key, Map<String, Object> restaurant) {
+		if (key == null || restaurant == null) {
+			return;
+		}
+		Iterator<String> iterator = key.iterator();
+		while(iterator.hasNext()) {
+			String k = iterator.next();
+			if (restaurant.get(k) == null) {
+				iterator.remove();
+			} else {
+				if (restaurant.get(k) instanceof String) {
+					String value = (String) restaurant.get(k);
+					if (value.trim().isEmpty()) {
+						iterator.remove();
+					}
+				}
+			}
+		}
 	}
 
 	private Map<String, Object> merge(Map<String, Object> patchElement, Map<String, Object> mainElement) {

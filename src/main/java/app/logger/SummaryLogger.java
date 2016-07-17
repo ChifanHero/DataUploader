@@ -9,6 +9,7 @@ public class SummaryLogger implements Logger{
 	private int totalRowsFromFile;
 	private int totalRecordsFromDB;
 	private Map<String, Integer> counts = new HashMap<String, Integer>();
+	private int savedCount;
 	
 	public void logSkippedRestaurant(String restaurantName, String reason) {
 		skippedRestaurants.put(restaurantName, reason);
@@ -25,6 +26,10 @@ public class SummaryLogger implements Logger{
 	public void logTotalRecordsFromDB(int total) {
 		totalRecordsFromDB = total;
 	}
+	
+	public void logTotalSaved(int total) {
+		savedCount = total;
+	}
 
 	@Override
 	public void print() {
@@ -38,6 +43,7 @@ public class SummaryLogger implements Logger{
 		for (Map.Entry<String, String> skipped : skippedRestaurants.entrySet()) {
 			System.out.println(skipped.getKey() + ": " + skipped.getValue());
 		}
+		System.out.println("Successfully saved " + savedCount + " restaurants.");
 	}
 
 }

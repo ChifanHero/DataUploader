@@ -7,13 +7,14 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
-import com.google.maps.GeoApiContext;
-import com.google.maps.GeocodingApi;
-import com.google.maps.model.GeocodingResult;
-import com.google.maps.model.LatLng;
-
 import app.bean.Coordinates;
-import app.config.GoogleConfig;
+import app.bean.LocationInfo;
+import app.google.http.GoogleGeocodingClient;
+import app.google.http.response.GeocodingResponse;
+import app.google.http.response.GeocodingResult;
+import app.google.http.response.Geometry;
+import app.google.http.response.Location;
+import app.logger.StatusLogger;
 import github.familysyan.concurrent.tasks.Task;
 import github.familysyan.concurrent.tasks.TaskConfiguration;
 import github.familysyan.concurrent.tasks.orchestrator.Orchestrator;
@@ -22,12 +23,14 @@ import github.familysyan.concurrent.tasks.orchestrator.Orchestrator;
  * @author shiyan
  * This task is for calling google geocoding api.
  */
-public class GeocodingTask implements Task<Map<String, Coordinates>>{
+public class GeocodingTask implements Task<Map<String, LocationInfo>>{
 
 	private Orchestrator orchestrator;
+	private String apiKey;
 	
-	public GeocodingTask(Orchestrator orchestrator) {
+	public GeocodingTask(Orchestrator orchestrator, String apiKey) {
 		this.orchestrator = orchestrator;
+		this.apiKey = apiKey;
 	}
 	
 	@Override
@@ -40,7 +43,8 @@ public class GeocodingTask implements Task<Map<String, Coordinates>>{
 	 */
 	@SuppressWarnings("unchecked")
 	@Override
-	public Map<String, Coordinates> execute(List<Object> dependencies) {
+	public Map<String, LocationInfo> execute(List<Object> dependencies) {
+		System.out.println("Starting Geocoding Task");
 		if (dependencies == null || dependencies.size() != 1) {
 			return Collections.emptyMap();
 		}
@@ -48,7 +52,7 @@ public class GeocodingTask implements Task<Map<String, Coordinates>>{
 		AggregateTask aggregateTask = new AggregateTask();
 		TaskConfiguration tc = new TaskConfiguration(aggregateTask);
 		for (int i = 1; i <= restaurants.size(); i++) {
-			SubTask subTask = new SubTask(i, (String) restaurants.get(i - 1).get("address"));
+			SubTask subTask = new SubTask(i, (String) restaurants.get(i - 1).get("address"), apiKey);
 			orchestrator.acceptTask(subTask);
 			tc.addDependency(subTask);
 			if (i % 50 == 0) { // pause for 1.1 seconds. Because geocoding api has limit of 50 req/s.
@@ -60,9 +64,9 @@ public class GeocodingTask implements Task<Map<String, Coordinates>>{
 			}
 		}
 		orchestrator.acceptTask(aggregateTask, tc);
-		Map<String, Coordinates> result = null;
+		Map<String, LocationInfo> result = null;
 		try {
-			result = (Map<String, Coordinates>) orchestrator.getTaskResult(aggregateTask.getUniqueTaskId());
+			result = (Map<String, LocationInfo>) orchestrator.getTaskResult(aggregateTask.getUniqueTaskId());
 		} catch (InterruptedException | ExecutionException | TimeoutException e) {
 			e.printStackTrace();
 			System.err.println("Error executing GeocodingTask. Abort data upload.");
@@ -83,14 +87,16 @@ public class GeocodingTask implements Task<Map<String, Coordinates>>{
 		return 0;
 	}
 	
-	private static class SubTask implements Task<Map<String, Coordinates>> {
+	private static class SubTask implements Task<Map<String, LocationInfo>> {
 
 		private int id = 0;
 		private String address;
+		private String apiKey;
 		
-		public SubTask(int id, String address) {
+		public SubTask(int id, String address, String apiKey) {
 			this.id = id;
 			this.address = address;
+			this.apiKey = apiKey;
 		}
 		
 		@Override
@@ -99,30 +105,56 @@ public class GeocodingTask implements Task<Map<String, Coordinates>>{
 		}
 
 		@Override
-		public Map<String, Coordinates> execute(List<Object> dependencies) {
-			GeoApiContext context = new GeoApiContext().setApiKey(GoogleConfig.GEOCODING_API_KEY);
-			GeocodingResult[] results = null;
+		public Map<String, LocationInfo> execute(List<Object> dependencies) {
+			Map<String, LocationInfo> locationInfo = new HashMap<String, LocationInfo>();
 			try {
-				results = GeocodingApi.geocode(context, this.address).await();
-				if (results != null && results.length == 1) {
-					GeocodingResult result = results[0];
-					if (result != null && result.geometry != null && result.geometry.location != null) {
-						LatLng latlng = result.geometry.location;
-						Map<String, Coordinates> latlngMap = new HashMap<String, Coordinates>();
-						Coordinates coordinates = new Coordinates();
-						coordinates.setLat(latlng.lat);
-						coordinates.setLon(latlng.lng);
-						latlngMap.put(address, coordinates);
-						return latlngMap;
+				GoogleGeocodingClient client = new GoogleGeocodingClient(apiKey);
+				GeocodingResponse response = client.get(address);
+				if (response != null) {
+					List<GeocodingResult> results = response.getResults();
+					if (results != null && results.size() != 0) {
+						if (results.size() == 1) {
+							GeocodingResult result = results.get(0);
+							Geometry geometry = result.getGeometry();
+							String formattedAddress = result.getFormattedAddress();
+							LocationInfo info = new LocationInfo();
+							locationInfo.put(address, info);
+							if (geometry != null) {
+								Location location = geometry.getLocation();
+								if (location != null) {
+									double lat = location.getLat();
+									double lon = location.getLng();
+									Coordinates coordinates = new Coordinates();
+									coordinates.setLat(lat);
+									coordinates.setLon(lon);
+									info.setCoordinates(coordinates);
+								} else {
+									StatusLogger.getInstance().geoCodingLogger.logFailReason(address, "Not able to get lat&lng for this address");
+								}
+							} else {
+								StatusLogger.getInstance().geoCodingLogger.logFailReason(address, "Not able to get geometry for this address");
+							}
+							if (formattedAddress != null) {
+								info.setFormattedAddress(formattedAddress);
+							} else {
+								StatusLogger.getInstance().geoCodingLogger.logFailReason(address, "Not able to format this address");
+							}
+						} else {
+							StatusLogger.getInstance().geoCodingLogger.logFailReason(address, "Ambigous address.");
+						}
+					} else {
+						StatusLogger.getInstance().geoCodingLogger.logFailReason(address, "Did not get info for this address");
 					}
-				} 
+				} else {
+					StatusLogger.getInstance().geoCodingLogger.logFailReason(address, "Get null response from Google.");
+				}
 			} catch (Exception e) {
 				e.printStackTrace();
 				System.err.println("Geocoding api has error. Current address is " + this.address);
 				System.exit(0);
 			}
 			
-			return Collections.emptyMap();
+			return locationInfo;
 		}
 
 		@Override
@@ -138,7 +170,7 @@ public class GeocodingTask implements Task<Map<String, Coordinates>>{
 		
 	}
 	
-	private static class AggregateTask implements Task<Map<String, Coordinates>> {
+	private static class AggregateTask implements Task<Map<String, LocationInfo>> {
 
 		@Override
 		public String getUniqueTaskId() {
@@ -147,14 +179,14 @@ public class GeocodingTask implements Task<Map<String, Coordinates>>{
 
 		@SuppressWarnings("unchecked")
 		@Override
-		public Map<String, Coordinates> execute(List<Object> dependencies) {
+		public Map<String, LocationInfo> execute(List<Object> dependencies) {
 			if (dependencies == null) {
 				return Collections.emptyMap();
 			}
-			Map<String, Coordinates> results = new HashMap<String, Coordinates>();
+			Map<String, LocationInfo> results = new HashMap<String, LocationInfo>();
 			for (Object dependency : dependencies) {
 				if (dependency != null && dependency instanceof Map) {
-					Map<String, Coordinates> map = (Map<String, Coordinates>) dependency;
+					Map<String, LocationInfo> map = (Map<String, LocationInfo>) dependency;
 					results.putAll(map);
 				}
 				
