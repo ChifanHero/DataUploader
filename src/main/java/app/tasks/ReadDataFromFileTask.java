@@ -5,13 +5,11 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import app.bean.BeanProperties;
-import app.bean.formatter.RestaurantFormatter;
+import app.csv.MapCSVParser;
+import app.logger.StatusLogger;
 import github.familysyan.concurrent.tasks.Task;
 
 /**
@@ -21,6 +19,7 @@ import github.familysyan.concurrent.tasks.Task;
 public class ReadDataFromFileTask implements Task<List<Map<String, Object>>>{
 	
 	private List<String> filePaths;
+	private StatusLogger statusLogger = StatusLogger.getInstance();
 	
 	public ReadDataFromFileTask(List<String> files) {
 		if (files == null) {
@@ -39,6 +38,7 @@ public class ReadDataFromFileTask implements Task<List<Map<String, Object>>>{
 		}
 		List<Map<String, Object>> results = new ArrayList<Map<String, Object>>();
 		for (String file : filePaths) {
+			List<Map<String, Object>> subResults = new ArrayList<Map<String, Object>>();
 			BufferedReader br;
 			try {
 				br = new BufferedReader(new FileReader(file));
@@ -46,23 +46,11 @@ public class ReadDataFromFileTask implements Task<List<Map<String, Object>>>{
 				if (headerLine == null) {
 					continue;
 				}
-				Map<Integer, String> headers = getHeaders(headerLine);
+				MapCSVParser csvParser = new MapCSVParser(headerLine);
 				String content = null;
 				while((content=br.readLine())!=null){
-					Map<String, Object> result = new HashMap<String, Object>();
-			        String str[] = content.split(",");
-			        for(int i=0;i<str.length;i++){
-			        	String propertyName = headers.get(i);
-			        	String propertyValue = str[i];
-			        	if (BeanProperties.NAME.equals(propertyName)) {
-			        		propertyValue = RestaurantFormatter.formatChineseName(propertyValue);
-			        	} else if (BeanProperties.PHONE.equals(propertyName)) {
-			        		propertyValue = RestaurantFormatter.formatPhone(propertyValue);
-			        	}
-			        	
-			        	result.put(propertyName, propertyValue);
-			        }
-			        results.add(result);
+					Map<String, Object> result = csvParser.parseLine(content);
+					subResults.add(result);
 			    }
 			} catch (FileNotFoundException e) {
 				e.printStackTrace();
@@ -73,23 +61,13 @@ public class ReadDataFromFileTask implements Task<List<Map<String, Object>>>{
 				System.err.println("Not able to read data. Abort data upload.");
 				System.exit(0);
 			}
+			statusLogger.summaryLogger.logRowsForFile(file, subResults.size());
+			results.addAll(subResults);
 			
 		}
+		statusLogger.summaryLogger.logTotalRows(results.size());
 		return results;
 		
-	}
-
-	private Map<Integer, String> getHeaders(String headerLine) {
-		String[] headers = headerLine.split(",");
-		if (headers != null && headers.length > 0) {
-			Map<Integer, String> result = new HashMap<Integer, String>();
-			for (int i = 0; i < headers.length; i++) {
-				result.put(i, headers[i]);
-			}
-			return result;
-		} else {
-			return Collections.emptyMap();
-		}
 	}
 
 	public void failedToComplete() {

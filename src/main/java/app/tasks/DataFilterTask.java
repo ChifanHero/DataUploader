@@ -1,58 +1,94 @@
 package app.tasks;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
-import app.bean.BeanProperties;
 import app.bean.Coordinates;
+import app.bean.converter.CoordinatesConverter;
+import app.logger.StatusLogger;
+import app.tasks.util.GeoId;
 import github.familysyan.concurrent.tasks.Task;
 
 /**
  * @author shiyan
  * This task is mainly for filtering out existing record.
  */
-public class DataFilterTask implements Task<List<Map<String, String>>>{
+public class DataFilterTask implements Task<List<Map<String, Object>>>{
 
 	private Map<String, Map<String, Object>> existing = new HashMap<String, Map<String, Object>>();
+	private StatusLogger statusLogger = StatusLogger.getInstance();
+	
 	
 	public String getUniqueTaskId() {
 		return this.getClass().getName();
 	}
 
 	/**
-	 * Expected dependencies:</br> 1. restaurants from database;</br> 2. restaurants from file;</br> 3. address to coordinates map
+	 * Expected dependencies:</br> 1. restaurants from database;</br> 2. restaurants from file;
 	 */
 	@SuppressWarnings("unchecked")
-	public List<Map<String, String>> execute(List<Object> dependencies) {
-		if (dependencies == null || dependencies.size() != 3) {
+	public List<Map<String, Object>> execute(List<Object> dependencies) {
+		if (dependencies == null || dependencies.size() != 2) {
 			return Collections.emptyList();
 		}
-		List<Map<String, Object>> existingRestaurants = (List<Map<String, Object>>) dependencies.get(0);
-		List<Map<String, Object>> newRestaurants = (List<Map<String, Object>>) dependencies.get(1);
-		Map<String, Coordinates> coordinates = (Map<String, Coordinates>) dependencies.get(2);
-		createExiting(existingRestaurants);
+		List<Map<String, Object>> existingRestaurants = null;
+		List<Map<String, Object>> newRestaurants = null;
+		for (int i = 0; i < dependencies.size(); i++) {
+			List<Map<String, Object>> restaurants = (List<Map<String, Object>>) (dependencies.get(i));
+			if (restaurants != null && restaurants.size() > 0) {
+				if (restaurants.get(0).get("_id") != null) {
+					existingRestaurants = restaurants;
+					newRestaurants = (List<Map<String, Object>>) (dependencies.get(1 - i));
+				} else {
+					newRestaurants = restaurants;
+					existingRestaurants = (List<Map<String, Object>>) (dependencies.get(1 - i));
+				}
+			}
+		}
+		recordExiting(existingRestaurants);
 		List<Map<String, Object>> results = new ArrayList<Map<String, Object>>();
 		for (Map<String, Object> restaurant : newRestaurants) {
-			String address = (String) restaurant.get(BeanProperties.ADDRESS);
-			Coordinates latlon = coordinates.get(address);
-			if (latlon == null) {
-				continue;
-			}
-			String geoId = getGeoId(latlon.getLat(), latlon.getLon());
+			String geoId = (String) restaurant.get("geo_id");
 			if (existing.get(geoId) != null) {
-				Map<String, Object> merged = merge(restaurant, existing.get(geoId));
-				existing.put(geoId, merged);
-				results.add(merged);
+				if (needsToMerge(restaurant, existing.get(geoId))) {
+					Map<String, Object> merged = merge(restaurant, existing.get(geoId));
+					existing.put(geoId, merged);
+					results.add(merged);
+				} else {
+					String name = restaurant.get("name") != null? (String)restaurant.get("name") : (String) restaurant.get("english_name");
+					statusLogger.summaryLogger.logSkippedRestaurant(name, "Completely same restaurant already existing");
+				}
+				
 			} else {
 				existing.put(geoId, restaurant);
 				results.add(restaurant);
 			}
 		}
-		return null;
+		return results;
+	}
+
+	private boolean needsToMerge(Map<String, Object> restaurant, Map<String, Object> existing) {
+		if (restaurant == null && existing == null) {
+			return false;
+		}
+		if (restaurant == null && existing != null) {
+			return false;
+		}
+		if (existing == null && restaurant != null) {
+			return true;
+		}
+		Set<String> newKey = restaurant.keySet();
+		Set<String> existingKey = existing.keySet();
+		for (String key : newKey) {
+			if (!existingKey.contains(key)) {
+				return true;
+			} 
+		}
+		return false;
 	}
 
 	private Map<String, Object> merge(Map<String, Object> patchElement, Map<String, Object> mainElement) {
@@ -73,16 +109,20 @@ public class DataFilterTask implements Task<List<Map<String, String>>>{
 	}
 
 	@SuppressWarnings("unchecked")
-	private void createExiting(List<Map<String, Object>> existingRestaurants) {
+	private void recordExiting(List<Map<String, Object>> existingRestaurants) {
 		if (existingRestaurants == null || existingRestaurants.isEmpty()) {
 			return;
 		}
 		for (Map<String, Object> restaurant : existingRestaurants) {
-			List<Double> latlon = (List<Double>) restaurant.get("coordinates");
-			if (latlon == null) {
-				continue;
+			String geoId = (String) restaurant.get("geo_id");
+			if (geoId == null) {
+				List<Double> latlon = (List<Double>) restaurant.get("coordinates");
+				if (latlon == null) {
+					continue;
+				}
+				Coordinates coordinates = CoordinatesConverter.listToObject(latlon);
+				geoId = GeoId.from(coordinates.getLat(), coordinates.getLon());
 			}
-			String geoId = getGeoId(latlon.get(0), latlon.get(1));
 			existing.put(geoId, restaurant);
 		}
 	}
@@ -93,19 +133,6 @@ public class DataFilterTask implements Task<List<Map<String, String>>>{
 
 	public long getTimeout() {
 		return 0;
-	}
-	
-	
-	private String getGeoId(double lattitude, double longitude) {
-		Double lat = Double.valueOf(lattitude);
-		Double newLat =new BigDecimal(lat).setScale(4, BigDecimal.ROUND_DOWN).doubleValue();
-		Double lon = Double.valueOf(longitude);
-		Double newLon =new BigDecimal(lon).setScale(4, BigDecimal.ROUND_DOWN).doubleValue();
-		StringBuilder sb = new StringBuilder();
-		sb.append(newLat);
-		sb.append("|");
-		sb.append(newLon);
-		return sb.toString();
 	}
 
 }

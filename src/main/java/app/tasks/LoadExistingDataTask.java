@@ -10,11 +10,10 @@ import java.util.Map.Entry;
 import org.bson.Document;
 
 import com.mongodb.Block;
-import com.mongodb.MongoClient;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 
-import data.mongodb.DBManager;
+import app.logger.StatusLogger;
 import data.mongodb.MongoClientFactory;
 import github.familysyan.concurrent.tasks.Task;
 
@@ -24,6 +23,14 @@ import github.familysyan.concurrent.tasks.Task;
  */
 public class LoadExistingDataTask implements Task<List<Map<String, Object>>>{
 
+	private StatusLogger statusLogger = StatusLogger.getInstance(); 
+	
+	private String database;
+	
+	public LoadExistingDataTask(String database) {
+		this.database = database;
+	}
+	
 	public String getUniqueTaskId() {
 		return this.getClass().getName();
 	}
@@ -32,10 +39,7 @@ public class LoadExistingDataTask implements Task<List<Map<String, Object>>>{
 	 * This task does not have any dependency.
 	 */
 	public List<Map<String, Object>> execute(List<Object> dependencies) {
-		DBManager manager = new DBManager("mongodb://chifanhero:chifanhero@ds015780.mlab.com:15780/?authSource=lightning-staging");
-		MongoClient client = manager.createClient();
-		MongoClientFactory.setClient(client);
-		MongoCollection<Document> collection = client.getDatabase("lightning-staging").getCollection("Restaurant");
+		MongoCollection<Document> collection = MongoClientFactory.getClient().getDatabase(database).getCollection("Restaurant");
 		if (collection.count() <= 0) {
 			return Collections.emptyList();
 		}
@@ -47,6 +51,7 @@ public class LoadExistingDataTask implements Task<List<Map<String, Object>>>{
 			}
 			
 		});
+		statusLogger.summaryLogger.logTotalRecordsFromDB(results.size());
 		return results;
 	}
 

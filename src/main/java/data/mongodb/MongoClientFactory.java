@@ -4,14 +4,14 @@ import com.mongodb.MongoClient;
 
 public class MongoClientFactory {
 	
-	private static ThreadLocal<MongoClient> store = new ThreadLocal<MongoClient>();
-	
+	private static MongoClient client;
+		
 	public static MongoClient getClient() {
-		return store.get();
+		return client;
 	}
 	
 	public static void setClient(MongoClient client) {
-		store.set(client);
+		MongoClientFactory.client = client;
 	}
 
 }
