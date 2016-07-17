@@ -53,5 +53,24 @@ public class GoogleGeocodingClientTest {
 		assertTrue(location.getLat() != 0);
 		assertTrue(location.getLng() != 0);
 	}
+	
+	@Test
+	public void test3() throws ClientProtocolException, IOException {
+		GoogleGeocodingClient client = new GoogleGeocodingClient(GoogleConfig.GEOCODING_API_KEY);
+		String address = "900 W Olympic Blvd /\nLos Angeles, CA 90015";
+		GeocodingResponse response = client.get(address);
+		assertTrue(response != null);
+		assertTrue(response.getResults() != null);
+		assertTrue(response.getResults().size() == 1);
+		List<GeocodingResult> results = response.getResults();
+		GeocodingResult result = results.get(0);
+		assertTrue(result.getFormattedAddress() != null);
+		assertTrue(result.getGeometry() != null);
+		Geometry geometry = result.getGeometry();
+		assertTrue(geometry.getLocation() != null);
+		Location location = geometry.getLocation();
+		assertTrue(location.getLat() != 0);
+		assertTrue(location.getLng() != 0);
+	}
 
 }

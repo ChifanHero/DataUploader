@@ -1,14 +1,12 @@
 package app.tasks;
 
-import java.io.BufferedReader;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import app.csv.MapCSVParser;
+import app.csv.SuperCSVReader;
 import app.logger.StatusLogger;
 import github.familysyan.concurrent.tasks.Task;
 
@@ -40,19 +38,20 @@ public class ReadDataFromFileTask implements Task<List<Map<String, Object>>>{
 		List<Map<String, Object>> results = new ArrayList<Map<String, Object>>();
 		for (String file : filePaths) {
 			List<Map<String, Object>> subResults = new ArrayList<Map<String, Object>>();
-			BufferedReader br;
+//			BufferedReader br;
 			try {
-				br = new BufferedReader(new FileReader(file));
-				String headerLine = br.readLine();
-				if (headerLine == null) {
-					continue;
-				}
-				MapCSVParser csvParser = new MapCSVParser(headerLine);
-				String content = null;
-				while((content=br.readLine())!=null){
-					Map<String, Object> result = csvParser.parseLine(content);
-					subResults.add(result);
-			    }
+				subResults.addAll(SuperCSVReader.read(file));
+//				br = new BufferedReader(new FileReader(file));
+//				String headerLine = br.readLine();
+//				if (headerLine == null) {
+//					continue;
+//				}
+//				MapCSVParser csvParser = new MapCSVParser(headerLine);
+//				String content = null;
+//				while((content=br.readLine())!=null){
+//					Map<String, Object> result = csvParser.parseLine(content);
+//					subResults.add(result);
+//			    }
 			} catch (FileNotFoundException e) {
 				e.printStackTrace();
 				System.err.println("Not able to find file. Abort data upload.");
@@ -66,19 +65,20 @@ public class ReadDataFromFileTask implements Task<List<Map<String, Object>>>{
 			results.addAll(subResults);
 			
 		}
+		System.out.println("End read file task");
 		statusLogger.summaryLogger.logTotalRows(results.size());
 		return results;
 		
 	}
 
 	public void failedToComplete() {
-		// TODO Auto-generated method stub
-		
+		System.err.println("Not able to read data within 10s. Abort");
+		System.exit(0);
 	}
 
 	public long getTimeout() {
 		// TODO Auto-generated method stub
-		return 0;
+		return 10000;
 	}
 
 }

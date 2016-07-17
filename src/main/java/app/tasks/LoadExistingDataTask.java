@@ -53,6 +53,7 @@ public class LoadExistingDataTask implements Task<List<Map<String, Object>>>{
 			
 		});
 		statusLogger.summaryLogger.logTotalRecordsFromDB(results.size());
+		System.out.println("End LoadingExistingDataTask");
 		return results;
 	}
 
@@ -88,12 +89,12 @@ public class LoadExistingDataTask implements Task<List<Map<String, Object>>>{
 	}
 
 	public void failedToComplete() {
-		System.err.println("Not able to load mongodb data within 5 seconds. Abort data upload.");
+		System.err.println("Not able to load mongodb data within 15 seconds. Abort data upload.");
 		System.exit(0);
 	}
 
 	public long getTimeout() {
-		return 5000;
+		return 15000;
 	}
 
 }

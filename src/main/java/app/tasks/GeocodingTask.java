@@ -106,11 +106,16 @@ public class GeocodingTask implements Task<Map<String, LocationInfo>>{
 
 		@Override
 		public Map<String, LocationInfo> execute(List<Object> dependencies) {
+//			System.out.println("Starting geo subtask");
 			Map<String, LocationInfo> locationInfo = new HashMap<String, LocationInfo>();
 			try {
 				GoogleGeocodingClient client = new GoogleGeocodingClient(apiKey);
 				GeocodingResponse response = client.get(address);
 				if (response != null) {
+					if (response.getErrorMessage() != null) {
+						System.err.println(address + ": " + response.getErrorMessage());
+						return Collections.emptyMap();
+					}
 					List<GeocodingResult> results = response.getResults();
 					if (results != null && results.size() != 0) {
 						if (results.size() == 1) {
@@ -159,13 +164,13 @@ public class GeocodingTask implements Task<Map<String, LocationInfo>>{
 
 		@Override
 		public void failedToComplete() {
-			System.err.println("not able to call geocoding api within 2s. upload data abort");
+			System.err.println("not able to call geocoding api within 4s. upload data abort");
 			System.exit(0);
 		}
 
 		@Override
 		public long getTimeout() {
-			return 2000;
+			return 4000;
 		}
 		
 	}

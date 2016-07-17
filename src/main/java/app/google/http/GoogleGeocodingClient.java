@@ -27,20 +27,23 @@ public class GoogleGeocodingClient {
 		if (address == null) {
 			return null;
 		}
-		address = address.trim().replaceAll(" ", "+");
+		address = address.trim().replaceAll(" ", "+").replaceAll("\n", "").replaceAll("\r", "");
 		String url = BASE_URL + "address=" + address + "&key=" + apiKey;
 		HttpClient client = HttpClientBuilder.create().build();
 		HttpGet request = new HttpGet(url);
 		HttpResponse response = client.execute(request);
-		if (response.getStatusLine().getStatusCode() != 200) {
-			return null;
-		}
+		
 		BufferedReader rd = new BufferedReader(
 			new InputStreamReader(response.getEntity().getContent()));
 		StringBuffer result = new StringBuffer();
 		String line = "";
 		while ((line = rd.readLine()) != null) {
 			result.append(line);
+		}
+		if (response.getStatusLine().getStatusCode() != 200) {
+			System.err.println("failed to call geocoding api. Response code is " + response.getStatusLine().getStatusCode());
+			System.out.println(result.toString());
+			return null;
 		}
 		GeocodingResponse geocodingResponse = mapper.readValue(result.toString(), GeocodingResponse.class);
 		return geocodingResponse;
