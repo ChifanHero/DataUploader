@@ -21,6 +21,7 @@ import github.familysyan.concurrent.tasks.Task;
 public class DataFilterTask implements Task<List<Map<String, Object>>>{
 
 	private Map<String, Map<String, Object>> existing = new HashMap<String, Map<String, Object>>();
+	private Map<String, Map<String, Object>> existingAddress = new HashMap<String, Map<String, Object>>();
 	private StatusLogger statusLogger = StatusLogger.getInstance();
 	
 	
@@ -51,14 +52,27 @@ public class DataFilterTask implements Task<List<Map<String, Object>>>{
 				}
 			}
 		}
+		System.out.println(newRestaurants.size() + " restaurants before deduping");
 		recordExiting(existingRestaurants);
 		List<Map<String, Object>> results = new ArrayList<Map<String, Object>>();
 		for (Map<String, Object> restaurant : newRestaurants) {
 			String geoId = (String) restaurant.get("geo_id");
-			if (existing.get(geoId) != null) {
-				if (needsToMerge(restaurant, existing.get(geoId))) {
+			String address = (String) restaurant.get("address");
+			if (existing.get(geoId) != null || existingAddress.get(address) != null) {
+				Map<String, Object> existingRestaurant = null;
+				if (existing.get(geoId) != null) {
+					existingRestaurant = existing.get(geoId);
+				}
+				if (existingAddress.get(address) != null) {
+					existingRestaurant = existingAddress.get(address);
+				}
+				if (needsToMerge(restaurant, existingRestaurant)) {
 					Map<String, Object> merged = merge(restaurant, existing.get(geoId));
 					existing.put(geoId, merged);
+					existingAddress.put(address, merged);
+					if (results.contains(existingRestaurant)) {
+						results.remove(existingRestaurant);
+					}
 					results.add(merged);
 				} else {
 					String name = restaurant.get("name") != null? (String)restaurant.get("name") : (String) restaurant.get("english_name");
@@ -70,6 +84,7 @@ public class DataFilterTask implements Task<List<Map<String, Object>>>{
 				results.add(restaurant);
 			}
 		}
+		System.out.println(results.size() + " restaurants after deduping");
 		return results;
 	}
 
@@ -139,6 +154,7 @@ public class DataFilterTask implements Task<List<Map<String, Object>>>{
 		}
 		for (Map<String, Object> restaurant : existingRestaurants) {
 			String geoId = (String) restaurant.get("geo_id");
+			String address = (String) restaurant.get("address");
 			if (geoId == null) {
 				List<Double> latlon = (List<Double>) restaurant.get("coordinates");
 				if (latlon == null) {
@@ -148,6 +164,7 @@ public class DataFilterTask implements Task<List<Map<String, Object>>>{
 				geoId = GeoId.from(coordinates.getLat(), coordinates.getLon());
 			}
 			existing.put(geoId, restaurant);
+			existingAddress.put(address, restaurant);
 		}
 	}
 

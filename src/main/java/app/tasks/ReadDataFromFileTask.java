@@ -78,7 +78,7 @@ public class ReadDataFromFileTask implements Task<List<Map<String, Object>>>{
 
 	public long getTimeout() {
 		// TODO Auto-generated method stub
-		return 10000;
+		return 0;
 	}
 
 }

@@ -49,15 +49,16 @@ public class GeocodingTask implements Task<Map<String, LocationInfo>>{
 			return Collections.emptyMap();
 		}
 		List<Map<String, Object>> restaurants = (List<Map<String, Object>>) dependencies.get(0);
+		System.out.println(restaurants.size() + " restaurants need geo info");
 		AggregateTask aggregateTask = new AggregateTask();
 		TaskConfiguration tc = new TaskConfiguration(aggregateTask);
 		for (int i = 1; i <= restaurants.size(); i++) {
 			SubTask subTask = new SubTask(i, (String) restaurants.get(i - 1).get("address"), apiKey);
 			orchestrator.acceptTask(subTask);
 			tc.addDependency(subTask);
-			if (i % 50 == 0) { // pause for 1.1 seconds. Because geocoding api has limit of 50 req/s.
+			if (i % 40 == 0) { // pause for 1.5 seconds. Because geocoding api has limit of 50 req/s.
 				try {
-				    Thread.sleep(1100);                 
+				    Thread.sleep(2000);                 
 				} catch(InterruptedException ex) {
 				    Thread.currentThread().interrupt();
 				}
@@ -72,6 +73,7 @@ public class GeocodingTask implements Task<Map<String, LocationInfo>>{
 			System.err.println("Error executing GeocodingTask. Abort data upload.");
 			System.exit(0);
 		}
+		System.out.println(result.size() + " restaurants get geo info");
 		return result;
 	}
 
@@ -114,6 +116,7 @@ public class GeocodingTask implements Task<Map<String, LocationInfo>>{
 				if (response != null) {
 					if (response.getErrorMessage() != null) {
 						System.err.println(address + ": " + response.getErrorMessage());
+						StatusLogger.getInstance().geoCodingLogger.logFailReason(address, response.getErrorMessage());
 						return Collections.emptyMap();
 					}
 					List<GeocodingResult> results = response.getResults();
@@ -145,7 +148,7 @@ public class GeocodingTask implements Task<Map<String, LocationInfo>>{
 								StatusLogger.getInstance().geoCodingLogger.logFailReason(address, "Not able to format this address");
 							}
 						} else {
-							StatusLogger.getInstance().geoCodingLogger.logFailReason(address, "Ambigous address.");
+							StatusLogger.getInstance().geoCodingLogger.logFailReason(address, "Ambigous address. " + results.size() + " results found.");
 						}
 					} else {
 						StatusLogger.getInstance().geoCodingLogger.logFailReason(address, "Did not get info for this address");
@@ -164,13 +167,13 @@ public class GeocodingTask implements Task<Map<String, LocationInfo>>{
 
 		@Override
 		public void failedToComplete() {
-			System.err.println("not able to call geocoding api within 4s. upload data abort");
+			System.err.println("not able to call geocoding api within 10s. upload data abort");
 			System.exit(0);
 		}
 
 		@Override
 		public long getTimeout() {
-			return 4000;
+			return 10000;
 		}
 		
 	}
@@ -196,6 +199,7 @@ public class GeocodingTask implements Task<Map<String, LocationInfo>>{
 				}
 				
 			}
+			System.out.println("Sucessfully get geo info for " + results.size() + " restaurants");
 			return results;
 		}
 

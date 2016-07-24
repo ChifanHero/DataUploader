@@ -8,6 +8,7 @@ import java.util.Map;
 import app.bean.BeanProperties;
 import app.bean.LocationInfo;
 import app.bean.converter.CoordinatesConverter;
+import app.bean.formatter.RestaurantFormatter;
 import app.logger.StatusLogger;
 import app.tasks.util.GeoId;
 import github.familysyan.concurrent.tasks.Task;
@@ -38,12 +39,22 @@ public class FileDataNormalizeTask implements Task<List<Map<String, Object>>>{
 				newRestaurants = (List<Map<String, Object>>) dependency;
 			}
 		}
+		System.out.println(locationInfo.size() + " restaurants has geo info (observed in normalization task)");
+		System.out.println(newRestaurants.size() + " restaurants before normalization");
 		if (newRestaurants != null) {
 			Iterator<Map<String, Object>> iterator = newRestaurants.iterator();
 			while (iterator.hasNext()) {
 				Map<String, Object> newRestaurant = iterator.next();
 				String address = (String) newRestaurant.get(BeanProperties.ADDRESS);
 				if (locationInfo != null && locationInfo.get(address) != null) {
+					if (newRestaurant.get("name") != null) {
+						String name = (String) newRestaurant.get("name");
+						newRestaurant.put("name", RestaurantFormatter.formatChineseName(name));
+					}
+					if (newRestaurant.get("phone") != null) {
+						String phone = (String) newRestaurant.get("phone");
+						newRestaurant.put("phone", RestaurantFormatter.formatPhone(phone));
+					}
 					LocationInfo info = locationInfo.get(address);
 					newRestaurant.put(BeanProperties.ADDRESS, info.getFormattedAddress());
 					List<Double> coordinates = CoordinatesConverter.objectToList(info.getCoordinates());
@@ -57,6 +68,7 @@ public class FileDataNormalizeTask implements Task<List<Map<String, Object>>>{
 			}
 			
 		}
+		System.out.println(newRestaurants.size() + " restaurants after normalization");
 		return newRestaurants;
 		
 	}

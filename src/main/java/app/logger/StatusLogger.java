@@ -20,11 +20,11 @@ public class StatusLogger implements Logger{
 
 	@Override
 	public void print() {
-		summaryLogger.print();
-		System.out.println(SEPERATOR);
 		mongoLogger.print();
 		System.out.println(SEPERATOR);
 		geoCodingLogger.print();
+		System.out.println(SEPERATOR);
+		summaryLogger.print();
 	}
 
 }

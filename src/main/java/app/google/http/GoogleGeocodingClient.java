@@ -3,6 +3,7 @@ package app.google.http;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.URLEncoder;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
@@ -27,7 +28,9 @@ public class GoogleGeocodingClient {
 		if (address == null) {
 			return null;
 		}
-		address = address.trim().replaceAll(" ", "+").replaceAll("\n", "").replaceAll("\r", "");
+//		address = address.trim().replaceAll(" ", "+").replaceAll("\n", "+").replaceAll("\r", "+");
+		address = address.trim().replaceAll("\n", "+").replaceAll("\r", "+");
+		address = URLEncoder.encode(address, "UTF-8");
 		String url = BASE_URL + "address=" + address + "&key=" + apiKey;
 		HttpClient client = HttpClientBuilder.create().build();
 		HttpGet request = new HttpGet(url);

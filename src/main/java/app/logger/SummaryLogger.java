@@ -1,18 +1,25 @@
 package app.logger;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+
+import app.bean.KeyValuePair;
 
 public class SummaryLogger implements Logger{
 	
-	private Map<String, String> skippedRestaurants = new HashMap<String, String>();
+	private List<KeyValuePair> skippedRestaurants = new ArrayList<KeyValuePair>();
 	private int totalRowsFromFile;
 	private int totalRecordsFromDB;
 	private Map<String, Integer> counts = new HashMap<String, Integer>();
 	private int savedCount;
 	
 	public void logSkippedRestaurant(String restaurantName, String reason) {
-		skippedRestaurants.put(restaurantName, reason);
+		KeyValuePair kv = new KeyValuePair();
+		kv.setKey(restaurantName);
+		kv.setValue(reason);
+		skippedRestaurants.add(kv);
 	}
 	
 	public void logTotalRows(int total) {
@@ -40,7 +47,7 @@ public class SummaryLogger implements Logger{
 		} 
 		System.out.println("Loaded " + totalRecordsFromDB + " existing records from database.");
 		System.out.println("Skipped " + skippedRestaurants.size() + " restaurants. For reasons: ");
-		for (Map.Entry<String, String> skipped : skippedRestaurants.entrySet()) {
+		for (KeyValuePair skipped: skippedRestaurants) {
 			System.out.println(skipped.getKey() + ": " + skipped.getValue());
 		}
 		System.out.println("Successfully saved " + savedCount + " restaurants.");

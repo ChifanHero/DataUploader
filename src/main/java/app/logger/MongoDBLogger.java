@@ -7,6 +7,7 @@ public class MongoDBLogger implements Logger {
 	
 	private boolean success = true;
 	private List<String> errors = new ArrayList<String>();
+	private int saveCandidatesCount;
 	
 
 	public void setSuccess(boolean success) {
@@ -16,11 +17,16 @@ public class MongoDBLogger implements Logger {
 	public void addError(String error) {
 		errors.add(error);
 	}
+	
+	public void logCandidatesCount(int count) {
+		saveCandidatesCount = count;
+	}
 
 
 
 	@Override
 	public void print() {
+		System.out.println(this.saveCandidatesCount + " candidates to be saved.");
 		System.out.println("MongoDB status: ");
 		if (success) {
 			System.out.println("Successfully saved data");

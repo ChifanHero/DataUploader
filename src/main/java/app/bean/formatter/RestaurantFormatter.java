@@ -29,6 +29,9 @@ public class RestaurantFormatter {
 	}
 	
 	public static String formatPhone(String original) {
+		if (original == null) {
+			return null;
+		}
 		Pattern p = Pattern.compile("\\d");
 		Matcher m = p.matcher(original);
 		List<String> numbers = new ArrayList<String>();

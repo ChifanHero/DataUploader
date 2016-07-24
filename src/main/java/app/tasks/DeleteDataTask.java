@@ -8,27 +8,24 @@ import java.util.Map;
 import org.bson.Document;
 
 import com.mongodb.client.MongoCollection;
-import com.mongodb.client.model.UpdateOneModel;
-import com.mongodb.client.model.UpdateOptions;
-import com.mongodb.client.model.WriteModel;
+import com.mongodb.client.model.DeleteOneModel;
 
-import app.bean.converter.MongoDocumentConverter;
 import app.logger.StatusLogger;
 import data.mongodb.MongoClientFactory;
 import github.familysyan.concurrent.tasks.Task;
 
 /**
  * @author shiyan
- * This task is for saving data to mongodb.
+ * This task is for deleting data from mongodb.
  */
-public class SaveDataTask implements Task<Object>{
+public class DeleteDataTask implements Task<Object>{
 	
 	private MongoCollection<Document> collection;
 	private StatusLogger statusLogger = StatusLogger.getInstance();
 	
 	private String database;
 
-	public SaveDataTask(String database) {
+	public DeleteDataTask(String database) {
 		this.database = database;
 	}
 	
@@ -42,44 +39,35 @@ public class SaveDataTask implements Task<Object>{
 	 */
 	@SuppressWarnings("unchecked")
 	public Object execute(List<Object> dependencies) {
-		System.out.println("Starting SaveDataTask");
+		System.out.println("Starting DeleteDataTask");
 		if (dependencies == null || dependencies.size() != 1) {
 			return Collections.emptyList();
 		}
 		collection = MongoClientFactory.getClient().getDatabase(database).getCollection("Restaurant");
 		List<Map<String, Object>> restaurants = (List<Map<String, Object>>) dependencies.get(0);
-		StatusLogger.getInstance().mongoLogger.logCandidatesCount(restaurants.size());
-		upsertData(restaurants);
+		System.out.println(restaurants.size() + " restaurants to be deleted");
+		deleteData(restaurants);
+		System.out.println("Successfully deleted data");
 		return null;
 	}
-
-	private void upsertData(List<Map<String, Object>> restaurants) {
+	
+	private void deleteData(List<Map<String, Object>> restaurants) {
 		if (restaurants == null || restaurants.isEmpty()) {
 			return;
 		}
-		int saved = 0;
-		List<WriteModel<Document>> updates = new ArrayList<WriteModel<Document>>();
-		List<Document> documents = new ArrayList<Document>();
+		List<DeleteOneModel<Document>> deletes = new ArrayList<DeleteOneModel<Document>>();
 		for (Map<String, Object> obj : restaurants) {
-			documents.add(MongoDocumentConverter.convertOrCreate(obj));
-		}
-		for (Document document : documents) {
-			UpdateOneModel<Document> model = new UpdateOneModel<Document>(
-	                new Document("_id", document.get("_id")),                   // find part
-	                new Document("$set",document),           // update part
-	                new UpdateOptions().upsert(true)  // options like upsert
-	        );
-			updates.add(model);
+			DeleteOneModel<Document> model = new DeleteOneModel<Document>(
+	                new Document("_id", obj.get("_id")));
+			deletes.add(model);	
 		}
 		try {
-			collection.bulkWrite(updates);
-			saved = updates.size();
+			collection.bulkWrite(deletes);
+			System.out.println("Successfully deleted " + deletes.size() + " documents");
 		} catch (Exception e) {
-			statusLogger.mongoLogger.setSuccess(false);
-			statusLogger.mongoLogger.addError(e.getMessage());
-			saved = 0;
+			e.printStackTrace();
 		}
-		statusLogger.summaryLogger.logTotalSaved(saved);
+		
 	}
 
 	public void failedToComplete() {
